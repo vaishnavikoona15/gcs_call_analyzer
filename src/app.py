@@ -370,171 +370,71 @@ def display_analysis(file_key):
                 if duration > 0:
                     st.markdown(f'<div class="info-box">Call Duration: {format_duration(duration)}</div>', 
                               unsafe_allow_html=True)
+                    
+        """Display sentiment analysis in the specified tab"""
         with tab3:
             st.header("Sentiment Analysis")
             
-            if 'sentiment_analysis' in analysis and 'per_speaker' in analysis['sentiment_analysis']:
-                # Overall Tone Summary Section
-                st.subheader("Speaker Tone Analysis")
+            if 'sentiment_analysis' in analysis:
+                # Comprehend Analysis Section
+                st.subheader("Quick Sentiment Overview")
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     st.markdown(
-                        '<div class="sentiment-card">'
-                        '<h3 style="color: #003366; margin-bottom: 10px;">Bank Employee Tone</h3>'
-                        f'{analysis["sentiment_analysis"]["per_speaker"]["spk_0"]["tone_summary"]}'
+                        '<div class="sentiment-card" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">'
+                        '<h3 style="color: #003366; margin-bottom: 10px;">Bank Employee</h3>'
+                        f'<div style="font-size: 24px; font-weight: bold; color: #003366; text-align: center;">'
+                        f'{analysis["sentiment_analysis"]["comprehend_analysis"]["per_speaker"]["spk_0"]["tone_summary"]}'
+                        '</div>'
                         '</div>',
                         unsafe_allow_html=True
                     )
                 
                 with col2:
                     st.markdown(
-                        '<div class="sentiment-card">'
-                        '<h3 style="color: #660033; margin-bottom: 10px;">Customer Tone</h3>'
-                        f'{analysis["sentiment_analysis"]["per_speaker"]["spk_1"]["tone_summary"]}'
+                        '<div class="sentiment-card" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">'
+                        '<h3 style="color: #660033; margin-bottom: 10px;">Customer</h3>'
+                        f'<div style="font-size: 24px; font-weight: bold; color: #660033; text-align: center;">'
+                        f'{analysis["sentiment_analysis"]["comprehend_analysis"]["per_speaker"]["spk_1"]["tone_summary"]}'
+                        '</div>'
                         '</div>',
                         unsafe_allow_html=True
                     )
                 
-                # # Sentiment Timeline Section
-                # st.subheader("Sentiment Timeline")
+                # Detailed LLM Analysis Section
+                st.subheader("Detailed Conversation Analysis")
                 
-                # def sentiment_to_value(sentiment):
-                #     sentiment_map = {
-                #         'POSITIVE': 1,
-                #         'NEUTRAL': 0,
-                #         'NEGATIVE': -1,
-                #         'MIXED': 0.5
-                #     }
-                #     return sentiment_map.get(sentiment, 0)
+                llm_analysis = analysis["sentiment_analysis"]["llm_analysis"]
                 
-                # # Process timeline data
-                # timeline = analysis['sentiment_analysis']['timeline']
-                
-                # # Separate data for each speaker
-                # bank_employee_data = [(item['timestamp'], sentiment_to_value(item['sentiment'])) 
-                #                    for item in timeline if item['speaker'] == 'spk_0']
-                # customer_data = [(item['timestamp'], sentiment_to_value(item['sentiment'])) 
-                #                for item in timeline if item['speaker'] == 'spk_1']
-                
-                # # Create figure
-                # fig = go.Figure()
-                
-                # # Add traces for each speaker
-                # if bank_employee_data:
-                #     x_bank, y_bank = zip(*bank_employee_data)
-                #     fig.add_trace(go.Scatter(
-                #         x=x_bank,
-                #         y=y_bank,
-                #         name='Bank Employee',
-                #         line=dict(color='#003366', width=2),
-                #         hovertemplate='Time: %{x:.1f}s<br>Sentiment: %{text}<extra></extra>',
-                #         text=['Positive' if y==1 else 'Negative' if y==-1 else 'Neutral' if y==0 else 'Mixed' for y in y_bank]
-                #     ))
-                
-                # if customer_data:
-                #     x_cust, y_cust = zip(*customer_data)
-                #     fig.add_trace(go.Scatter(
-                #         x=x_cust,
-                #         y=y_cust,
-                #         name='Customer',
-                #         line=dict(color='#660033', width=2),
-                #         hovertemplate='Time: %{x:.1f}s<br>Sentiment: %{text}<extra></extra>',
-                #         text=['Positive' if y==1 else 'Negative' if y==-1 else 'Neutral' if y==0 else 'Mixed' for y in y_cust]
-                #     ))
-                
-                # # Update layout
-                # fig.update_layout(
-                #     title='Sentiment Changes Throughout Call',
-                #     xaxis_title='Time (seconds)',
-                #     yaxis_title='Sentiment',
-                #     yaxis=dict(
-                #         ticktext=['Negative', 'Neutral', 'Positive'],
-                #         tickvals=[-1, 0, 1],
-                #         range=[-1.2, 1.2]
-                #     ),
-                #     hovermode='x unified',
-                #     height=400,
-                #     showlegend=True,
-                #     legend=dict(
-                #         yanchor="top",
-                #         y=0.99,
-                #         xanchor="left",
-                #         x=0.01
-                #     ),
-                #     plot_bgcolor='rgba(255,255,255,0.9)',
-                #     paper_bgcolor='rgba(255,255,255,0)'
-                # )
-                
-                # # Display the plot
-                # st.plotly_chart(fig, use_container_width=True)
-                
-                # Sentiment Distribution Section
-                st.subheader("Sentiment Distribution")
-                
-                # Create distribution charts for each speaker
-                bank_sentiment_counts = analysis["sentiment_analysis"]["per_speaker"]["spk_0"]["sentiment_counts"]
-                customer_sentiment_counts = analysis["sentiment_analysis"]["per_speaker"]["spk_1"]["sentiment_counts"]
-                
-                # Create bar charts
-                fig_dist = make_subplots(rows=1, cols=2, subplot_titles=(
-                    "<b>Bank Employee Sentiment Distribution</b>", 
-                    "<b>Customer Sentiment Distribution</b>"
-                ))
-                
-                # Bank Employee distribution
-                fig_dist.add_trace(
-                    go.Bar(
-                        x=list(bank_sentiment_counts.keys()),
-                        y=list(bank_sentiment_counts.values()),
-                        name="Bank Employee",
-                        marker_color='#003366'
-                    ),
-                    row=1, col=1
+                # Customer Journey Card
+                st.markdown(
+                    '<div class="sentiment-card" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">'
+                    '<h3 style="color: #660033; margin-bottom: 15px;">Customer Journey</h3>'
+                    '<div style="margin-bottom: 15px;">'
+                    '<strong>Initial Interaction:</strong><br>'
+                    f'{llm_analysis.get("CUSTOMER_INITIAL_TONE", "Not available")}'
+                    '</div>'
+                    '<div style="margin-bottom: 15px;">'
+                    '<strong>During Discussion:</strong><br>'
+                    f'{llm_analysis.get("CUSTOMER_MIDDLE_TONE", "Not available")}'
+                    '</div>'
+                    '<div style="margin-bottom: 15px;">'
+                    '<strong>Call Conclusion:</strong><br>'
+                    f'{llm_analysis.get("CUSTOMER_FINAL_TONE", "Not available")}'
+                    '</div>'
+                    '</div>',
+                    unsafe_allow_html=True
                 )
                 
-                # Customer distribution
-                fig_dist.add_trace(
-                    go.Bar(
-                        x=list(customer_sentiment_counts.keys()),
-                        y=list(customer_sentiment_counts.values()),
-                        name="Customer",
-                        marker_color='#660033'
-                    ),
-                    row=1, col=2
+                # Employee Analysis Card
+                st.markdown(
+                    '<div class="sentiment-card" style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">'
+                    '<h3 style="color: #003366; margin-bottom: 15px;">Employee Analysis</h3>'
+                    f'{llm_analysis.get("EMPLOYEE_OVERALL_TONE", "Not available")}'
+                    '</div>',
+                    unsafe_allow_html=True
                 )
-                
-                fig_dist.update_layout(
-                    height=300,
-                    showlegend=False,
-                    title_text="Distribution of Sentiments by Speaker",
-                    plot_bgcolor='rgba(255,255,255,0.9)',
-                    paper_bgcolor='rgba(255,255,255,0)'
-                )
-                
-                # Update y-axis titles
-                fig_dist.update_yaxes(title_text="Frequency", row=1, col=1)
-                fig_dist.update_yaxes(title_text="Frequency", row=1, col=2)
-                
-                st.plotly_chart(fig_dist, use_container_width=True)
-                
-                # Add insights section
-                st.subheader("Key Sentiment Insights")
-                
-                # Calculate some basic insights
-                bank_dominant = analysis["sentiment_analysis"]["per_speaker"]["spk_0"]["dominant_sentiment"]
-                customer_dominant = analysis["sentiment_analysis"]["per_speaker"]["spk_1"]["dominant_sentiment"]
-                
-                with st.container():
-                    st.markdown(
-                        '<div class="sentiment-card">'
-                        '<ul>'
-                        f'<li>The bank employee maintained primarily a <b>{bank_dominant.lower()}</b> tone throughout the call</li>'
-                        f'<li>The customer expressed predominantly <b>{customer_dominant.lower()}</b> sentiment</li>'
-                        '</ul>'
-                        '</div>',
-                        unsafe_allow_html=True
-                    )
             else:
                 st.error("Sentiment analysis data not available for this call")
 

@@ -2,11 +2,13 @@ import boto3
 import json
 import requests
 from datetime import datetime
+from aws_services.bedrock import BedrockService 
 
 class TranscriptionService:
     def __init__(self):
         self.transcribe = boto3.client('transcribe')
         self.comprehend = boto3.client('comprehend')
+        self.bedrock_service = BedrockService()
         
     def start_transcription(self, bucket, key):
         """Start a transcription job"""
@@ -53,13 +55,11 @@ class TranscriptionService:
         """
         try:
             sentiment_results = {}
-            sentiment_timeline = []
             all_sentiments = []  # Track all sentiments for overall calculation
             
             # Analyze each speaker's text separately
             for speaker, utterances in speakers_text.items():
                 speaker_sentiments = []
-                timestamp = 0
                 
                 # Split text into chunks if it's too long (Comprehend has a 5000 byte limit)
                 max_chunk_size = 4800
@@ -73,15 +73,7 @@ class TranscriptionService:
                             LanguageCode='en'
                         )
                         speaker_sentiments.append(response['Sentiment'])
-                        all_sentiments.append(response['Sentiment'])  # Add to overall sentiments
-                        # Add to timeline with approximate timestamp
-                        sentiment_timeline.append({
-                            'timestamp': timestamp,
-                            'speaker': speaker,
-                            'sentiment': response['Sentiment'],
-                            'score': response['SentimentScore']
-                        })
-                        timestamp += len(chunk.split()) * 0.3  # Rough estimate of time based on word count
+                        all_sentiments.append(response['Sentiment'])
                 
                 # Calculate speaker summary
                 if speaker_sentiments:
@@ -95,22 +87,17 @@ class TranscriptionService:
                     # Get the most common sentiment
                     dominant_sentiment = max(sentiment_counts, key=sentiment_counts.get)
                     
-                    # Generate tone summary
-                    tone_changes = []
-                    prev_sentiment = None
-                    for s in speaker_sentiments:
-                        if s != prev_sentiment and prev_sentiment is not None:
-                            tone_changes.append(f"{prev_sentiment} to {s}")
-                        prev_sentiment = s
-                    
-                    tone_summary = "Consistent " + dominant_sentiment.lower()
-                    if tone_changes:
-                        tone_summary = f"Tone shifted from {', then '.join(tone_changes)}"
+                    # Generate detailed tone analysis
+                    if speaker == 'spk_1':  # Customer
+                        tone_description = self._analyze_customer_tone(utterances, dominant_sentiment)
+                    else:  # Bank employee
+                        tone_description = self._analyze_employee_tone(dominant_sentiment)
                     
                     sentiment_results[speaker] = {
                         'dominant_sentiment': dominant_sentiment,
                         'sentiment_counts': sentiment_counts,
-                        'tone_summary': tone_summary
+                        'tone_summary': dominant_sentiment,
+                        'tone_description': tone_description
                     }
             
             # Calculate overall sentiment
@@ -127,12 +114,50 @@ class TranscriptionService:
             
             return {
                 'per_speaker': sentiment_results,
-                'timeline': sentiment_timeline,
-                'overall_sentiment': overall_sentiment  # Add overall sentiment
+                'overall_sentiment': overall_sentiment
             }
                 
         except Exception as e:
             raise Exception(f"Error analyzing sentiment: {str(e)}")
+
+    def _analyze_customer_tone(self, text, sentiment):
+        """Helper function to analyze customer tone in detail"""
+        text_lower = text.lower()
+        
+        # Financial distress indicators
+        distress_keywords = ['debt', 'payment', 'difficult', 'problem', 'worried', 
+                            'stress', 'cannot', 'unable', 'help', 'late', 'behind']
+        
+        # Positive indicators
+        positive_keywords = ['thank', 'appreciate', 'good', 'great', 'excellent', 
+                            'happy', 'satisfied', 'agree', 'perfect']
+        
+        if sentiment == 'NEGATIVE':
+            if any(keyword in text_lower for keyword in distress_keywords):
+                return "Customer showed signs of financial distress and expressed concerns about their financial situation"
+            return "Customer expressed dissatisfaction during the conversation"
+            
+        elif sentiment == 'POSITIVE':
+            if any(keyword in text_lower for keyword in positive_keywords):
+                return "Customer showed appreciation and maintained a positive attitude throughout the discussion"
+            return "Customer maintained a constructive and optimistic approach"
+            
+        elif sentiment == 'MIXED':
+            return "Customer showed varying emotions, mixing both concerns and positive engagement"
+            
+        else:  # NEUTRAL
+            return "Customer maintained a professional and balanced tone throughout the conversation"
+
+    def _analyze_employee_tone(self, sentiment):
+        """Helper function to analyze bank employee tone"""
+        if sentiment == 'POSITIVE':
+            return "Demonstrated strong customer service with an encouraging and supportive approach"
+        elif sentiment == 'NEGATIVE':
+            return "Showed signs of tension in communication style"
+        elif sentiment == 'MIXED':
+            return "Displayed varying levels of engagement throughout the conversation"
+        else:  # NEUTRAL
+            return "Maintained a professional and consistent tone throughout the call"
 
     def get_transcription_result(self, job_name):
         """Get the result of a completed transcription job with speaker-specific text"""
@@ -198,16 +223,26 @@ class TranscriptionService:
                 
                 # Analyze sentiment for each speaker
                 sentiment_analysis = self.analyze_sentiment(transcript_text, speakers_text)
+            
+                # Get detailed LLM sentiment analysis from Bedrock
+                # bedrock_service = BedrockService()  # Create instance
+                llm_sentiment = self.bedrock_service.analyze_call_sentiment(transcript_text)
+                
+                # Combine both sentiment analyses
+                combined_sentiment = {
+                    'comprehend_analysis': sentiment_analysis,
+                    'llm_analysis': llm_sentiment
+                }
                 
                 return {
                     'transcript_text': transcript_text,
                     'duration': duration,
                     'speakers': list(set(speaker_map.values())),
                     'speakers_text': speakers_text,
-                    'sentiment_analysis': sentiment_analysis
+                    'sentiment_analysis': combined_sentiment
                 }
-            
+                
             return None
-            
+                
         except Exception as e:
             raise Exception(f"Error getting transcription result: {str(e)}")
